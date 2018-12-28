@@ -398,10 +398,11 @@ def sortPhotos(src_dir, dest_dir, sort_format, rename_format, recursive=False,
                 else:
                     dest_compare = dest_file
                 if duplicates in ['leave', 'remove'] and filecmp.cmp(src_file, dest_compare):  # check for identical files
-                    fileIsIdentical = True
-                    if verbose:
-                        print('Identical file already exists.  Duplicate will be ignored.\n')
-                    break
+                    if filecmp.cmp(src_file, dest_compare, False):
+                        fileIsIdentical = True
+                        if verbose:
+                            print('Identical file already exists.  Duplicate will be ignored.\n')
+                        break
 
                 else:  # name is same, but file is different
                     if keep_filename:
