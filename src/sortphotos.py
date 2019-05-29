@@ -225,7 +225,7 @@ class ExifTool(object):
 
 
 def sortPhotos(src_dir, dest_dir, sort_format, rename_format, recursive=False,
-        copy_files=False, test=False, remove_duplicates=True, day_begins=0,
+        copy_files=False, test=False, duplicates="leave", day_begins=0,
         additional_groups_to_ignore=['File'], additional_tags_to_ignore=[],
         use_only_groups=None, use_only_tags=None, verbose=True, keep_filename=False):
     """
@@ -250,8 +250,8 @@ def sortPhotos(src_dir, dest_dir, sort_format, rename_format, recursive=False,
         True if you want files to be copied over from src_dir to dest_dir rather than moved
     test : bool
         True if you just want to simulate how the files will be moved without actually doing any moving/copying
-    remove_duplicates : bool
-        True to remove files that are exactly the same in name and a file hash
+    duplicates : str leave, keep, remove
+        leave: do no touch duplicates, keep: move+rename, remove: ...
     keep_filename : bool
         True to append original filename in case of duplicates instead of increasing number
     day_begins : int
@@ -397,11 +397,12 @@ def sortPhotos(src_dir, dest_dir, sort_format, rename_format, recursive=False,
                     dest_compare = test_file_dict[dest_file]
                 else:
                     dest_compare = dest_file
-                if remove_duplicates and filecmp.cmp(src_file, dest_compare):  # check for identical files
-                    fileIsIdentical = True
-                    if verbose:
-                        print('Identical file already exists.  Duplicate will be ignored.\n')
-                    break
+                if duplicates in ['leave', 'remove'] and filecmp.cmp(src_file, dest_compare):  # check for identical files
+                    if filecmp.cmp(src_file, dest_compare, False):
+                        fileIsIdentical = True
+                        if verbose:
+                            print('Identical file already exists.  Duplicate will be ignored.\n')
+                        break
 
                 else:  # name is same, but file is different
                     if keep_filename:
@@ -423,8 +424,9 @@ def sortPhotos(src_dir, dest_dir, sort_format, rename_format, recursive=False,
 
         else:
 
-            if fileIsIdentical:
+            if duplicates == 'leave' and fileIsIdentical:
                 continue  # ignore identical files
+            # TODO: remove file if 'remove'
             else:
                 if copy_files:
                     shutil.copy2(src_file, dest_file)
@@ -467,8 +469,8 @@ def main():
     parser.add_argument('--keep-filename', action='store_true',
                         help='In case of duplicated output filenames an increasing number and the original file name will be appended',
                         default=False)
-    parser.add_argument('--keep-duplicates', action='store_true',
-                        help='If file is a duplicate keep it anyway (after renaming).')
+    parser.add_argument('--duplicates', type=str, default="leave",
+                        help='leave: do no touch duplicates, keep: move+rename, remove: ...')
     parser.add_argument('--day-begins', type=int, default=0, help='hour of day that new day begins (0-23), \n\
     defaults to 0 which corresponds to midnight.  Useful for grouping pictures with previous day.')
     parser.add_argument('--ignore-groups', type=str, nargs='+',
@@ -494,7 +496,7 @@ def main():
     args = parser.parse_args()
 
     sortPhotos(args.src_dir, args.dest_dir, args.sort, args.rename, args.recursive,
-        args.copy, args.test, not args.keep_duplicates, args.day_begins,
+        args.copy, args.test, args.duplicates, args.day_begins,
         args.ignore_groups, args.ignore_tags, args.use_only_groups,
         args.use_only_tags, not args.silent, args.keep_filename)
 
